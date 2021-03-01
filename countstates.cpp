@@ -15,7 +15,7 @@
 
 ale::ALEInterface a;
 
-void countstates_rec(int limit, std::unordered_set<std::string>& seen)
+void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
 {
     std::string state = a.cloneState().serialize();
 // alternately: use RAM as state? undercounts in paddle-based games, where paddle position is also persistent state
@@ -59,7 +59,7 @@ size_t countstates_bfs(int limit, std::unordered_set<std::string>& seen, std::qu
             a.restoreState(state);
             a.act(action);
             ale::ALEState successor = a.cloneState();
-            auto [_,was_new] = seen.insert(successor.serialize());
+            auto [_, was_new] = seen.insert(successor.serialize());
             if (was_new)
                 frontier.push(std::make_pair(successor,depth+1));
         }
@@ -91,7 +91,6 @@ int main(int argc, char *argv[])
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
     std::cerr << "Upper bound on number of states: " << num_actions << "^" << max_depth << " ≈ 10^" << max_depth * std::log10(num_actions) << std::endl;
 
-
     std::cout << "depth,states" << std::endl;
     if (search_type == "id")
     {
@@ -99,7 +98,6 @@ int main(int argc, char *argv[])
         {
             size_t states = countstates_dfs(limit);
             std::cout << limit << "," << states << std::endl;
-            a.reset_game();
         }
     }
     else // bfs
