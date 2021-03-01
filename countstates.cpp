@@ -1,6 +1,6 @@
 /*
- * Iteratively count the number of distinct Atari states reachable in
- * 0..max_depth frames.
+ * Count the number of distinct Atari states reachable in 0..max_depth frames,
+ * using breadth-first search or iterative deepening.
  *
  * Mark J. Nelson, 2/2021
  */
@@ -11,6 +11,7 @@
 #include <string>
 #include <cmath>
 #include <unordered_set>
+#include <queue>
 
 ale::ALEInterface a;
 
@@ -36,22 +37,51 @@ void countstates_rec(int limit, std::unordered_set<std::string>& seen)
     }
 }
 
-size_t countstates(int limit)
+size_t countstates_dfs(int limit)
 {
     std::unordered_set<std::string> seen;
     countstates_rec(limit, seen);
     return seen.size();
 }
 
+size_t countstates_bfs(int limit, std::unordered_set<std::string>& seen, std::queue<std::pair<ale::ALEState,int>>& frontier)
+{
+    while (!frontier.empty())
+    {
+        auto [state,depth] = frontier.front();
+        if (depth >= limit)
+            break;
+
+        frontier.pop();
+        ale::ActionVect actions = a.getMinimalActionSet();
+        for (auto action : actions)
+        {
+            a.restoreState(state);
+            a.act(action);
+            ale::ALEState successor = a.cloneState();
+            auto [_,was_new] = seen.insert(successor.serialize());
+            if (was_new)
+                frontier.push(std::make_pair(successor,depth+1));
+        }
+    }
+    return seen.size();
+}
+
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 4)
     {
-        std::cerr << "Usage: countstates rom_file max_depth" << std::endl;
+        std::cerr << "Usage: countstates rom_file max_depth bfs|id" << std::endl;
         return -1;
     }
     std::string rom_file(argv[1]);
     int max_depth = std::stoi(argv[2]);
+    std::string search_type(argv[3]);
+    if (search_type != "bfs" && search_type != "id")
+    {
+        std::cerr << "Invalid search type: " << search_type << std::endl;
+        return -1;
+    }
 
     a.setInt("frame_skip", 1); // I think this is default, but to be sure
     a.setFloat("repeat_action_probability", 0.0); // synthetic stochasticity? no thanks!
@@ -61,11 +91,30 @@ int main(int argc, char *argv[])
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
     std::cerr << "Upper bound on number of states: " << num_actions << "^" << max_depth << " ≈ 10^" << max_depth * std::log10(num_actions) << std::endl;
 
+
     std::cout << "depth,states" << std::endl;
-    for (int limit = 0; limit <= max_depth; limit++)
+    if (search_type == "id")
     {
-        size_t states = countstates(limit);
-        std::cout << limit << "," << states << std::endl;
-        a.reset_game();
+        for (int limit = 0; limit <= max_depth; limit++)
+        {
+            size_t states = countstates_dfs(limit);
+            std::cout << limit << "," << states << std::endl;
+            a.reset_game();
+        }
+    }
+    else // bfs
+    {
+        std::unordered_set<std::string> seen;
+        std::queue<std::pair<ale::ALEState,int>> frontier; // (node,depth)
+
+        ale::ALEState root = a.cloneState();
+        seen.insert(root.serialize());
+        frontier.push(std::make_pair(root, 0));
+
+        for (int limit = 0; limit <= max_depth; limit++)
+        {
+            size_t states = countstates_bfs(limit, seen, frontier);
+            std::cout << limit << "," << states << std::endl;
+        }
     }
 }
