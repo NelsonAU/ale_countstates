@@ -31,7 +31,7 @@ void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
         {
             a.saveState();
             a.act(action);
-            countstates_rec(limit-1, seen);
+            countstates_dfs_rec(limit-1, seen);
             a.loadState();
         }
     }
@@ -40,7 +40,7 @@ void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
 size_t countstates_dfs(int limit)
 {
     std::unordered_set<std::string> seen;
-    countstates_rec(limit, seen);
+    countstates_dfs_rec(limit, seen);
     return seen.size();
 }
 
