@@ -24,7 +24,7 @@ void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
 
     auto [_, was_new] = seen.insert(state);
 
-    if (was_new && limit > 0)
+    if (was_new && limit > 0 && !a.game_over())
     {
         ale::ActionVect actions = a.getMinimalActionSet();
         for (auto action : actions)
@@ -60,7 +60,7 @@ size_t countstates_bfs(int limit, std::unordered_set<std::string>& seen, std::qu
             a.act(action);
             ale::ALEState successor = a.cloneState();
             auto [_, was_new] = seen.insert(successor.serialize());
-            if (was_new)
+            if (was_new && !a.game_over())
                 frontier.push(std::make_pair(successor,depth+1));
         }
     }
