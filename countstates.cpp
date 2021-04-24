@@ -2,7 +2,7 @@
  * Count the number of distinct Atari states reachable in 0..max_depth frames,
  * using breadth-first search or iterative deepening.
  *
- * Mark J. Nelson, 2/2021
+ * Mark J. Nelson, 2021
  */
 
 #include "ale_interface.hpp"
@@ -10,19 +10,27 @@
 #include <iostream>
 #include <string>
 #include <cmath>
-#include <unordered_set>
+#include <set>
 #include <queue>
+#include <array>
 
 ale::ALEInterface a;
 
-void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
+// for 1-player games, the RAM plus the left paddle position is the complete game state
+constexpr size_t kRamSize = 128;
+using ram_t = std::array<ale::byte_t, kRamSize>;
+using state_t = std::pair<ram_t, int>;
+state_t current_state()
 {
-    std::string state = a.cloneState().serialize();
-// alternately: use RAM as state? undercounts in paddle-based games, where paddle position is also persistent state
-//    ale::ALERAM ram = a.getRAM();
-//    std::string state(reinterpret_cast<const char *>(ram.array()), ram.size());
+    const ale::byte_t* ram_temp = a.getRAM().array();
+    ram_t ram;
+    std::copy(ram_temp, ram_temp + kRamSize, ram.begin());
+    return std::make_pair(ram, a.getLeftPaddle());
+}
 
-    auto [_, was_new] = seen.insert(state);
+void countstates_dfs_rec(int limit, std::set<state_t>& seen)
+{
+    auto [_, was_new] = seen.insert(current_state());
 
     if (was_new && limit > 0 && !a.game_over())
     {
@@ -39,12 +47,12 @@ void countstates_dfs_rec(int limit, std::unordered_set<std::string>& seen)
 
 size_t countstates_dfs(int limit)
 {
-    std::unordered_set<std::string> seen;
+    std::set<state_t> seen;
     countstates_dfs_rec(limit, seen);
     return seen.size();
 }
 
-size_t countstates_bfs(int limit, std::unordered_set<std::string>& seen, std::queue<std::pair<ale::ALEState,int>>& frontier)
+size_t countstates_bfs(int limit, std::set<state_t>& seen, std::queue<std::pair<ale::ALEState,int>>& frontier)
 {
     while (!frontier.empty())
     {
@@ -58,10 +66,12 @@ size_t countstates_bfs(int limit, std::unordered_set<std::string>& seen, std::qu
         {
             a.restoreState(state);
             a.act(action);
-            ale::ALEState successor = a.cloneState();
-            auto [_, was_new] = seen.insert(successor.serialize());
+            auto [_, was_new] = seen.insert(current_state());
             if (was_new && !a.game_over())
+            {
+                ale::ALEState successor = a.cloneState();
                 frontier.push(std::make_pair(successor,depth+1));
+            }
         }
     }
     return seen.size();
@@ -102,11 +112,11 @@ int main(int argc, char *argv[])
     }
     else // bfs
     {
-        std::unordered_set<std::string> seen;
+        std::set<state_t> seen;
         std::queue<std::pair<ale::ALEState,int>> frontier; // (node,depth)
 
         ale::ALEState root = a.cloneState();
-        seen.insert(root.serialize());
+        seen.insert(current_state());
         frontier.push(std::make_pair(root, 0));
 
         for (int limit = 0; limit <= max_depth; limit++)
