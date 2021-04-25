@@ -3,66 +3,66 @@
 #include <iostream>
 #include <string>
 #include <array>
-#include <stack>
 #include <algorithm>
 #include <cstdlib>
 
 int main(int argc, char *argv[])
 {
-    if (argc != 3)
+    if (argc != 2)
     {
-        std::cerr << "Usage: test_save_restore rom_file num_actions" << std::endl;
+        std::cerr << "Usage: test_save_restore rom_file" << std::endl;
         return -1;
     }
     std::string rom_file(argv[1]);
-    int num_actions = std::stoi(argv[2]);
 
     ale::ALEInterface ale;
     ale.setFloat("repeat_action_probability", 0.0); // take ALE stochasticity out of the picture
     ale.loadROM(rom_file);
 
-    // test if saving and restoring a sequence of N arbitrary actions works as expected
+    // test if taking two actions, restoring the previous state, and taking the
+    // same actions again results in the same state
     constexpr int kRamSize = 128;
-    std::stack<std::array<ale::byte_t, kRamSize>> ram_history;
     std::srand(22); // arbitrary reproducible value
-    for (int i = 0; i < num_actions; i++)
+
+    // save the ALE state
+    auto init_state = ale.cloneState();
+
+    // take two pseudorandom actions
+    auto actions = ale.getMinimalActionSet();
+    auto action1 = actions[rand() % actions.size()];
+    auto action2 = actions[rand() % actions.size()];
+    ale.act(action1);
+    ale.act(action2);
+
+    // save the resulting RAM
+    auto ram = ale.getRAM().array();
+    std::array<ale::byte_t, kRamSize> ram_copy;
+    std::copy(ram, ram+kRamSize, ram_copy.begin());
+
+    // restore the initial state
+    ale.restoreState(init_state);
+
+    // take the same actions again
+    ale.act(action1);
+    ale.act(action2);
+
+    // the RAM should now be identical to our saved RAM copy
+    ram = ale.getRAM().array();
+    if (!std::equal(ram, ram+kRamSize, ram_copy.begin()))
     {
-        // save current RAM
-        auto ram = ale.getRAM().array();
-        std::array<ale::byte_t, kRamSize> ram_copy;
-        std::copy(ram, ram+kRamSize, ram_copy.begin());
-        ram_history.push(ram_copy);
-
-        // save the ALE state
-        ale.saveState();
-
-        // take a pseudorandom action
-        auto actions = ale.getMinimalActionSet();
-        ale.act(actions[rand() % actions.size()]);
+        std::cout << "Took same actions from same state but got different results!" << std::endl;
+        std::cout << "Expected RAM: ";
+        std::cout << std::setfill('0') << std::hex;
+        for (int i = 0; i < kRamSize; i++)
+            std::cout << std::setw(2) << (int)ram_copy[i];
+        std::cout << std::endl << "Actual RAM:   ";
+        for (int i = 0; i < kRamSize; i++)
+            std::cout << std::setw(2) << (int)ram[i];
+        std::cout << std::endl;
+        return -2;
     }
 
-    // undo the N actions, and check that we get back the original RAM states
-    for (int i = 0; i < num_actions; i++)
-    {
-        ale.loadState();
-
-        auto restored = ale.getRAM().array();
-        auto expected = ram_history.top();
-        if (!std::equal(restored, restored+kRamSize, expected.begin()))
-        {
-            std::cout << "Uh oh, loadState() didn't restore previous RAM!" << std::endl;
-            std::cout << "Expected: ";
-            for (int i = 0; i < kRamSize; i++)
-                std::cout << std::hex << (int)expected[i];
-            std::cout << std::endl << "Actual:   ";
-            for (int i = 0; i < kRamSize; i++)
-                std::cout << std::hex << (int)restored[i];
-            std::cout << std::endl;
-
-            std::exit(-1);
-        }
-    }
-    std::cout << "Test successful!" << std::endl;
+    std::cout << "No inconsistencies found!" << std::endl;
 
     return 0;
 }
