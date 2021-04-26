@@ -1,6 +1,6 @@
 /*
- * Count the number of distinct Atari states reachable in 0..max_depth frames,
- * using breadth-first search or iterative deepening.
+ * Count the number of distinct Atari states reachable in N frames, using
+ * breadth-first search or iterative deepening.
  *
  * Mark J. Nelson, 2021
  */
@@ -37,10 +37,10 @@ void countstates_dfs_rec(int limit, std::set<state_t>& seen)
         ale::ActionVect actions = a.getMinimalActionSet();
         for (auto action : actions)
         {
-            a.saveState();
+            auto prev_state = a.cloneState();
             a.act(action);
             countstates_dfs_rec(limit-1, seen);
-            a.loadState();
+            a.restoreState(prev_state);
         }
     }
 }
@@ -81,11 +81,12 @@ int main(int argc, char *argv[])
 {
     if (argc != 4)
     {
-        std::cerr << "Usage: countstates rom_file max_depth bfs|id" << std::endl;
+        std::cerr << "Usage: countstates rom_file max_states bfs|id" << std::endl;
+        std::cerr << std::endl << "Note: When max_states is hit, will still complete the current frame's count." << std::endl;
         return -1;
     }
     std::string rom_file(argv[1]);
-    int max_depth = std::stoi(argv[2]);
+    int max_states = std::stoi(argv[2]);
     std::string search_type(argv[3]);
     if (search_type != "bfs" && search_type != "id")
     {
@@ -99,15 +100,17 @@ int main(int argc, char *argv[])
 
     size_t num_actions = a.getMinimalActionSet().size();
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
-    std::cerr << "Upper bound on number of states: " << num_actions << "^" << max_depth << " ≈ 10^" << max_depth * std::log10(num_actions) << std::endl;
 
     std::cout << "depth,states" << std::endl;
     if (search_type == "id")
     {
-        for (int limit = 0; limit <= max_depth; limit++)
+        int limit = 0;
+        size_t states = 0;
+        while (states < max_states)
         {
-            size_t states = countstates_dfs(limit);
+            states = countstates_dfs(limit);
             std::cout << limit << "," << states << std::endl;
+            limit++;
         }
     }
     else // bfs
@@ -119,10 +122,13 @@ int main(int argc, char *argv[])
         seen.insert(current_state());
         frontier.push(std::make_pair(root, 0));
 
-        for (int limit = 0; limit <= max_depth; limit++)
+        int limit = 0;
+        size_t states = 0;
+        while (states < max_states)
         {
-            size_t states = countstates_bfs(limit, seen, frontier);
+            states = countstates_bfs(limit, seen, frontier);
             std::cout << limit << "," << states << std::endl;
+            limit++;
         }
     }
 }
