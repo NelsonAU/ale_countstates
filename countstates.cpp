@@ -30,14 +30,14 @@ state_t current_state()
 
 void countstates_dfs_rec(int limit, std::set<state_t>& seen)
 {
-    auto [_, was_new] = seen.insert(current_state());
+    const auto [_, was_new] = seen.insert(current_state());
 
     if (was_new && limit > 0 && !a.game_over())
     {
-        ale::ActionVect actions = a.getMinimalActionSet();
-        for (auto action : actions)
+        const auto actions = a.getMinimalActionSet();
+        for (const auto action : actions)
         {
-            auto prev_state = a.cloneState();
+            const auto prev_state = a.cloneState();
             a.act(action);
             countstates_dfs_rec(limit-1, seen);
             a.restoreState(prev_state);
@@ -56,22 +56,19 @@ size_t countstates_bfs(int limit, std::set<state_t>& seen, std::queue<std::pair<
 {
     while (!frontier.empty())
     {
-        auto [state,depth] = frontier.front();
+        const auto [state,depth] = frontier.front();
         if (depth >= limit)
             break;
 
         frontier.pop();
-        ale::ActionVect actions = a.getMinimalActionSet();
-        for (auto action : actions)
+        const auto actions = a.getMinimalActionSet();
+        for (const auto action : actions)
         {
             a.restoreState(state);
             a.act(action);
-            auto [_, was_new] = seen.insert(current_state());
+            const auto [_, was_new] = seen.insert(current_state());
             if (was_new && !a.game_over())
-            {
-                ale::ALEState successor = a.cloneState();
-                frontier.push(std::make_pair(successor,depth+1));
-            }
+                frontier.emplace(a.cloneState(), depth+1);
         }
     }
     return seen.size();
@@ -85,9 +82,9 @@ int main(int argc, char *argv[])
         std::cerr << std::endl << "Note: When max_states is hit, will still complete the current frame's count." << std::endl;
         return -1;
     }
-    std::string rom_file(argv[1]);
-    int max_states = std::stoi(argv[2]);
-    std::string search_type(argv[3]);
+    const std::string rom_file(argv[1]);
+    const int max_states = std::stoi(argv[2]);
+    const std::string search_type(argv[3]);
     if (search_type != "bfs" && search_type != "id")
     {
         std::cerr << "Invalid search type: " << search_type << std::endl;
@@ -98,7 +95,7 @@ int main(int argc, char *argv[])
     a.setFloat("repeat_action_probability", 0.0); // synthetic stochasticity? no thanks!
     a.loadROM(rom_file);
 
-    size_t num_actions = a.getMinimalActionSet().size();
+    const size_t num_actions = a.getMinimalActionSet().size();
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
 
     std::cout << "depth,states" << std::endl;
@@ -118,9 +115,8 @@ int main(int argc, char *argv[])
         std::set<state_t> seen;
         std::queue<std::pair<ale::ALEState,int>> frontier; // (node,depth)
 
-        ale::ALEState root = a.cloneState();
         seen.insert(current_state());
-        frontier.push(std::make_pair(root, 0));
+        frontier.emplace(a.cloneState(), 0);
 
         int limit = 0;
         size_t states = 0;
