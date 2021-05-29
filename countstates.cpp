@@ -94,6 +94,9 @@ int main(int argc, char *argv[])
     a.setInt("frame_skip", 1); // I think this is default, but to be sure
     a.setFloat("repeat_action_probability", 0.0); // synthetic stochasticity? no thanks!
     a.loadROM(rom_file);
+    // there is some weirdness around whether a reset game is always identical
+    // to a freshly loaded ROM, so reset to be safe
+    a.reset_game();
 
     const size_t num_actions = a.getMinimalActionSet().size();
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
@@ -108,6 +111,7 @@ int main(int argc, char *argv[])
             states = countstates_dfs(limit);
             std::cout << limit << "," << states << std::endl;
             limit++;
+            a.reset_game();
         }
     }
     else // bfs
