@@ -1,0 +1,13 @@
+#!/bin/bash
+# LSF job script, mjn 2021
+#BSUB -J ale[1-103]
+##BSUB -q short
+#BSUB -R "order[ut]"
+#BSUB -o jobreport_%J.txt
+
+OUTDIR=results1m
+
+GAMENUM=$(( ($LSB_JOBINDEX-1) % 103 + 1 ))
+GAME=$(head -n $GAMENUM roms.txt | tail -n 1)  # nth line from the roms.txt file
+
+./build/countstates roms/${GAME}.bin 1000000 bfs > ${OUTDIR}/${GAME}.csv
