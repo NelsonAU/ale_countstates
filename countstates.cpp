@@ -91,12 +91,20 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // trondead starts in a 'dead' initial state: we need to take one dummy
+    // action to get the emulation going properly it seems.
+    bool initial_noop = false;
+    if (rom_file.find("trondead") != std::string::npos)
+        initial_noop = true;
+
     a.setInt("frame_skip", 1); // I think this is default, but to be sure
     a.setFloat("repeat_action_probability", 0.0); // synthetic stochasticity? no thanks!
     a.loadROM(rom_file);
     // there is some weirdness around whether a reset game is always identical
     // to a freshly loaded ROM, so reset to be safe
     a.reset_game();
+    if (initial_noop)
+        a.act(a.getMinimalActionSet()[0]);
 
     const size_t num_actions = a.getMinimalActionSet().size();
     std::cerr << rom_file << " has " << num_actions << " possible actions." << std::endl;
@@ -112,6 +120,8 @@ int main(int argc, char *argv[])
             std::cout << limit << "," << states << std::endl;
             limit++;
             a.reset_game();
+            if (initial_noop)
+                a.act(a.getMinimalActionSet()[0]);
         }
     }
     else // bfs
