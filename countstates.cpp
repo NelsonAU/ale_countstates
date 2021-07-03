@@ -28,11 +28,33 @@ state_t current_state()
     return std::make_pair(ram, a.getLeftPaddle());
 }
 
-void countstates_dfs_rec(int limit, std::set<state_t>& seen)
+void countstates_dfs_rec(int limit, std::map<state_t, int>& seen)
 {
-    const auto [_, was_new] = seen.insert(current_state());
+    // The logic here: expand a state's sucessors if it's new, *or* it is a
+    // previously seen state, but now seen at a shallower depth (at a higher
+    // 'limit') than before. The reason for the 2nd part: it might turn out
+    // that more of its successors are now reachable within the depth limit, so
+    // we need to re-expand its children with the new higher limit. (BFS
+    // doesn't need to do this, because its first visit to a given state is
+    // always via a shortest path.)
+    const auto cur_state = current_state();
+    const auto found = seen.find(cur_state);
+    bool was_new_or_shallower = false;
+    if (found == seen.end()) // not found
+    {
+        seen.try_emplace(cur_state, limit);
+        was_new_or_shallower = true;
+    }
+    else
+    {
+        if (limit > found->second)
+	{
+            found->second = limit;
+            was_new_or_shallower = true;
+        }
+    }
 
-    if (was_new && limit > 0 && !a.game_over())
+    if (was_new_or_shallower && limit > 0 && !a.game_over())
     {
         const auto actions = a.getMinimalActionSet();
         for (const auto action : actions)
@@ -47,7 +69,7 @@ void countstates_dfs_rec(int limit, std::set<state_t>& seen)
 
 size_t countstates_dfs(int limit)
 {
-    std::set<state_t> seen;
+    std::map<state_t, int> seen;
     countstates_dfs_rec(limit, seen);
     return seen.size();
 }
