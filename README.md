@@ -11,4 +11,4 @@ Overview:
 * Data up to 1,000,000 states on all games, using only BFS, is in the directory [results1m](results1m), and aggregated in [all1m.csv](all1m.csv)
 * [analyze.R](analyze.R) was used to produce the main results table in the paper (Table II); the data for that table is in [all1m_results.csv](all1m_results.csv)
 * [analyze_validation.R](analyze_validation.R) was used to produce the BFS vs. ID mismatches table (Table I); the data for that one is in [mismatches.csv](mismatches.csv)
-* [rominfo.R](rominfo.R) gives the size of the minimal action set for each game, and whether it uses the paddle controller
+* [rominfo.csv](rominfo.csv) gives the size of the minimal action set for each game, and whether it uses the paddle controller
