@@ -74,7 +74,7 @@ size_t countstates_dfs(int limit)
     return seen.size();
 }
 
-size_t countstates_bfs(int limit, std::set<state_t>& seen, std::queue<std::pair<ale::ALEState,int>>& frontier)
+size_t countstates_bfs(int limit, int max_states, std::set<state_t>& seen, std::queue<std::pair<ale::ALEState,int>>& frontier)
 {
     while (!frontier.empty())
     {
@@ -89,7 +89,7 @@ size_t countstates_bfs(int limit, std::set<state_t>& seen, std::queue<std::pair<
             a.restoreState(state);
             a.act(action);
             const auto [_, was_new] = seen.insert(current_state());
-            if (was_new && !a.game_over())
+            if (was_new && !a.game_over() && seen.size() < max_states)
                 frontier.emplace(a.cloneState(), depth+1);
         }
     }
@@ -158,7 +158,7 @@ int main(int argc, char *argv[])
         size_t states = 0;
         while (states < max_states)
         {
-            states = countstates_bfs(limit, seen, frontier);
+            states = countstates_bfs(limit, max_states, seen, frontier);
             std::cout << limit << "," << states << std::endl;
             limit++;
         }
